@@ -9,6 +9,7 @@ import {
   flagStuckConversations,
   checkOverdueWithSubscription,
 } from './rules.js'
+import { scoreRecentUnscored } from './lib/inferred-csat.js'
 
 async function safely(taskName: string, fn: () => Promise<void> | void): Promise<void> {
   try {
@@ -40,6 +41,12 @@ cron.schedule('*/30 * * * *', () => safely('stale+escalation-check', async () =>
 // Every hour: send CSAT requests for resolved conversations
 cron.schedule('0 * * * *', () => safely('csat-requests', () => sendPendingCsatRequests()))
 
+// Every hour: AI-score recently resolved conversations that haven't been scored yet
+cron.schedule('30 * * * *', () => safely('inferred-csat', async () => {
+  const scored = await scoreRecentUnscored(15)
+  if (scored > 0) logEvent('inferred_csat', 'Auto-scoring', `Scored ${scored} conversations`)
+}))
+
 // Every 2 hours: flag stuck conversations
 cron.schedule('0 */2 * * *', () => safely('stuck-conversations', () => flagStuckConversations()))
 
@@ -68,6 +75,51 @@ cron.schedule('0 6 * * *', () => safely('morning-digest', async () => {
   logEvent('digest', 'Morning digest sent', `Sent to ${clientEmail}`)
 }))
 
+// Weekly Sunday 22:00: generate AI insight report from last 7 days
+cron.schedule('0 22 * * 0', () => safely('weekly-insights', async () => {
+  const { generateInsightReport } = await import('./lib/insights.js')
+  const report = await generateInsightReport(7)
+  if (!report) { logEvent('insights', 'Skipped', 'Insufficient conversation data'); return }
+
+  logEvent('insights', 'Report generated', `${report.top_issues.length} issues, ${report.complaint_clusters.length} clusters`)
+
+  const clientEmail = process.env.CLIENT_EMAIL
+  const clientName = process.env.CLIENT_NAME ?? 'Team'
+  if (!clientEmail) return
+
+  const issuesList = report.top_issues.map(i => `• ${i}`).join('\n')
+  const clustersList = report.complaint_clusters.map(c => `• ${c.cluster} (${c.count} cases)`).join('\n')
+  const competitorSection = report.competitor_mentions.length
+    ? `\nCompetitor mentions:\n${report.competitor_mentions.map(c => `• ${c}`).join('\n')}`
+    : ''
+  const pricingSection = report.pricing_signals.length
+    ? `\nPricing signals:\n${report.pricing_signals.map(s => `• ${s}`).join('\n')}`
+    : ''
+  const productSection = report.product_signals.length
+    ? `\nProduct signals:\n${report.product_signals.map(s => `• ${s}`).join('\n')}`
+    : ''
+
+  await sendEmail(
+    clientEmail,
+    `CX Intelligence Brief — w/e ${new Date().toLocaleDateString('en-GB')}`,
+    `Hi ${clientName},\n\nHere's your weekly AI-generated CX intelligence brief:\n\n` +
+    `EXECUTIVE SUMMARY\n${report.summary}\n\n` +
+    `TOP ISSUES THIS WEEK\n${issuesList || '• None identified'}\n\n` +
+    `COMPLAINT CLUSTERS\n${clustersList || '• No clusters identified'}` +
+    competitorSection + pricingSection + productSection +
+    `\n\nFull report available in the Insights panel on your dashboard.`
+  ).catch(() => {})
+}))
+
+// Weekly Sunday 23:00: self-improvement — agent proposes KB entries from failures
+cron.schedule('0 23 * * 0', () => safely('self-improve', async () => {
+  const { runSelfImprovement } = await import('./lib/self-improve.js')
+  const proposed = await runSelfImprovement()
+  if (proposed > 0) {
+    logEvent('self_improve', 'KB proposals added', `${proposed} agent-proposed entries in learning queue`)
+  }
+}))
+
 // Weekly Monday 08:00: weekly summary
 cron.schedule('0 8 * * 1', () => safely('weekly-digest', async () => {
   const { getMetrics } = await import('./analytics/metrics.js')
@@ -94,7 +146,10 @@ cron.schedule('0 8 * * 1', () => safely('weekly-digest', async () => {
 console.log(`[CX Agent] Scheduler running — ${new Date().toISOString()}`)
 console.log('  Stale close + escalation check: every 30 minutes')
 console.log('  CSAT requests: every hour')
+console.log('  Inferred CSAT scoring: every hour at :30')
 console.log('  Stuck conversation check: every 2 hours')
 console.log('  Proactive outreach: daily 09:00')
 console.log('  Morning digest: daily 06:00')
+console.log('  AI insight report: Sunday 22:00')
+console.log('  Self-improvement proposals: Sunday 23:00')
 console.log('  Weekly summary: Monday 08:00')

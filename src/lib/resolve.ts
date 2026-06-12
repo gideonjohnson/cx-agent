@@ -2,6 +2,8 @@ import { anthropic } from './client.js'
 import { all, first, run, uid } from './db.js'
 import { assembleContext, formatContextForPrompt } from './context.js'
 import { shouldEscalateForSentiment } from './sentiment.js'
+import { scoreConversationAI } from './inferred-csat.js'
+import { upsertPreferences } from './customer-memory.js'
 import { mkdirSync, appendFileSync } from 'fs'
 import type Anthropic from '@anthropic-ai/sdk'
 
@@ -156,7 +158,6 @@ export async function resolveMessage(
   }
   if (escalated) {
     run(`UPDATE conversations SET status = 'escalated', escalated = 1 WHERE id = ?`, conversationId)
-    // Queue for learning review — agent couldn't resolve, flag for human correction
     run(
       `INSERT INTO learning_queue (id, conversation_id, customer_message, agent_response, improvement_type, trigger)
        VALUES (?, ?, ?, ?, 'substance', 'escalation')`,
@@ -164,10 +165,49 @@ export async function resolveMessage(
     )
   }
 
+  // Post-resolution: score conversation and update customer memory (fire-and-forget)
+  if (resolved || escalated) {
+    const conv = first<{ customer_id: string }>(
+      `SELECT customer_id FROM conversations WHERE id = ?`, conversationId
+    )
+    if (conv) {
+      scoreConversationAI(conversationId).catch(() => {})
+
+      // Detect language from last customer message and persist preferences
+      const langHint = detectLanguage(customerMessage)
+      const topAction = actionsTaken[0]
+      const issueCategory = topAction
+        ? topAction.includes('order') ? 'orders'
+          : topAction.includes('refund') || topAction.includes('billing') || topAction.includes('invoice') ? 'billing'
+          : topAction.includes('subscription') ? 'subscription'
+          : topAction.includes('account') || topAction.includes('password') || topAction.includes('unlock') ? 'account'
+          : topAction.includes('return') || topAction.includes('reship') ? 'returns'
+          : null
+        : null
+
+      if (langHint || issueCategory) {
+        upsertPreferences(conv.customer_id, {
+          ...(langHint ? { language: langHint } : {}),
+          ...(issueCategory ? { last_issue_category: issueCategory } : {}),
+        })
+      }
+    }
+  }
+
   appendFileSync(`./logs/resolver.log`,
     `[${new Date().toISOString()}] conv:${conversationId} (${totalTokens} tokens) actions:[${actionsTaken.join(',')}]\n`)
 
   return { response: finalResponse, escalated, resolved, actionsTaken, conversationId }
+
+  function detectLanguage(text: string): string | null {
+    const frWords = /\b(bonjour|merci|s'il vous|je veux|pouvez-vous|annuler|remboursement)\b/i
+    const esWords = /\b(hola|gracias|quiero|cancelar|reembolso|ayuda)\b/i
+    const deWords = /\b(hallo|danke|bitte|möchte|kündigen|rückerstattung)\b/i
+    if (frWords.test(text)) return 'fr'
+    if (esWords.test(text)) return 'es'
+    if (deWords.test(text)) return 'de'
+    return null
+  }
 }
 
 async function handleEscalation(

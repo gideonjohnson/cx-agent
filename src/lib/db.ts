@@ -225,10 +225,53 @@ db.exec(`
   );
 `)
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS insight_reports (
+    id TEXT PRIMARY KEY,
+    period_start TEXT NOT NULL,
+    period_end TEXT NOT NULL,
+    top_issues_json TEXT NOT NULL DEFAULT '[]',
+    complaint_clusters_json TEXT NOT NULL DEFAULT '[]',
+    competitor_mentions_json TEXT NOT NULL DEFAULT '[]',
+    pricing_signals_json TEXT NOT NULL DEFAULT '[]',
+    product_signals_json TEXT NOT NULL DEFAULT '[]',
+    summary TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS customer_preferences (
+    id TEXT PRIMARY KEY,
+    customer_id TEXT NOT NULL UNIQUE REFERENCES customers(id),
+    communication_style TEXT,
+    preferred_channel TEXT,
+    known_context TEXT,
+    language TEXT,
+    last_issue_category TEXT,
+    interaction_notes TEXT,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS voice_calls (
+    id TEXT PRIMARY KEY,
+    call_sid TEXT NOT NULL UNIQUE,
+    from_number TEXT NOT NULL,
+    to_number TEXT NOT NULL,
+    customer_id TEXT REFERENCES customers(id),
+    conversation_id TEXT REFERENCES conversations(id),
+    status TEXT NOT NULL DEFAULT 'in_progress',
+    transcript_json TEXT,
+    duration_seconds INTEGER,
+    started_at TEXT NOT NULL DEFAULT (datetime('now')),
+    ended_at TEXT
+  );
+`)
+
 // Migrations for existing DBs
 try { db.exec(`ALTER TABLE inbound_messages ADD COLUMN reply_type TEXT NOT NULL DEFAULT 'direct'`) } catch {}
 try { db.exec(`ALTER TABLE conversations ADD COLUMN identity_verified INTEGER NOT NULL DEFAULT 0`) } catch {}
 try { db.exec(`ALTER TABLE conversations ADD COLUMN verification_channel TEXT`) } catch {}
+try { db.exec(`ALTER TABLE conversations ADD COLUMN ai_csat_score REAL`) } catch {}
+try { db.exec(`ALTER TABLE conversations ADD COLUMN ai_csat_reason TEXT`) } catch {}
 
 export function all<T = Record<string, unknown>>(sql: string, ...params: unknown[]): T[] {
   return db.prepare(sql).all(...(params as any[])) as T[]

@@ -7,6 +7,7 @@ import { resetClient } from '../lib/client.js'
 import { dashboardHtml } from './ui.js'
 import { getSetupHtml } from './setup.js'
 import { getSettingsHtml } from './settings.js'
+import { getLatestInsightReport, listInsightReports, generateInsightReport } from '../lib/insights.js'
 
 const PORT = parseInt(process.env.DASHBOARD_PORT ?? '4747')
 
@@ -42,7 +43,8 @@ function getState() {
 
   const recentConversations = all(
     `SELECT conv.id, conv.status, conv.turn_count, conv.started_at, conv.resolved_at,
-            conv.resolution_method, conv.escalated, c.name as customer_name, c.tier as customer_tier
+            conv.resolution_method, conv.escalated, conv.ai_csat_score, conv.ai_csat_reason,
+            c.name as customer_name, c.tier as customer_tier
      FROM conversations conv
      JOIN customers c ON c.id = conv.customer_id
      ORDER BY conv.started_at DESC LIMIT 40`
@@ -110,13 +112,25 @@ function getState() {
     },
     integrations: all(`SELECT id, name, description, url, method, auth_type, active FROM integrations ORDER BY name`),
     learningQueue: all(`
-      SELECT lq.id, lq.customer_message, lq.agent_response, lq.improvement_type, lq.trigger, lq.status, lq.created_at,
+      SELECT lq.id, lq.customer_message, lq.agent_response, lq.improvement_type, lq.trigger, lq.status, lq.suggested_correction, lq.created_at,
              c.name as customer_name
       FROM learning_queue lq
       LEFT JOIN conversations conv ON conv.id = lq.conversation_id
       LEFT JOIN customers c ON c.id = conv.customer_id
-      WHERE lq.status = 'pending' ORDER BY lq.created_at DESC LIMIT 20
+      WHERE lq.status = 'pending' ORDER BY lq.created_at DESC LIMIT 25
     `),
+    latestInsight: getLatestInsightReport(),
+    voiceCalls: all(`
+      SELECT vc.id, vc.call_sid, vc.from_number, vc.status, vc.duration_seconds, vc.started_at, vc.ended_at,
+             c.name as customer_name
+      FROM voice_calls vc
+      LEFT JOIN customers c ON c.id = vc.customer_id
+      ORDER BY vc.started_at DESC LIMIT 20
+    `),
+    aiCsatStats: first<{ avg: number; count: number }>(
+      `SELECT ROUND(AVG(ai_csat_score), 1) as avg, COUNT(*) as count
+       FROM conversations WHERE ai_csat_score IS NOT NULL AND started_at >= datetime('now', '-30 days')`
+    ) ?? { avg: null, count: 0 },
   }
 }
 
@@ -711,6 +725,64 @@ Bun.serve({
     if (path === '/api/metrics' && method === 'GET') {
       const days = parseInt(url.searchParams.get('days') ?? '30')
       return json(getMetrics(days))
+    }
+
+    // ── Conversation replay (turn-by-turn timeline) ───────────────────────────
+
+    if (path.match(/^\/api\/conversations\/[\w]+\/replay$/) && method === 'GET') {
+      const convId = path.split('/')[3]
+      const messages = all<{ role: string; content: string; created_at: string; frustration_flag: number }>(
+        `SELECT role, content, created_at, frustration_flag FROM messages WHERE conversation_id = ? ORDER BY created_at ASC`, convId
+      )
+      const actions = all<{ action_name: string; authority_tier: string; input_json: string; output_json: string; verified: number; success: number; created_at: string }>(
+        `SELECT action_name, authority_tier, input_json, output_json, verified, success, created_at
+         FROM actions_log WHERE conversation_id = ? ORDER BY created_at ASC`, convId
+      )
+      const conv = first<{ ai_csat_score: number | null; ai_csat_reason: string | null; status: string; turn_count: number; channel: string }>(
+        `SELECT ai_csat_score, ai_csat_reason, status, turn_count, channel FROM conversations WHERE id = ?`, convId
+      )
+
+      // Interleave messages and actions into a unified timeline
+      const timeline: { type: 'message' | 'action'; ts: string; data: Record<string, unknown> }[] = [
+        ...messages.map(m => ({ type: 'message' as const, ts: m.created_at, data: m as unknown as Record<string, unknown> })),
+        ...actions.map(a => ({ type: 'action' as const, ts: a.created_at, data: a as unknown as Record<string, unknown> })),
+      ].sort((a, b) => a.ts.localeCompare(b.ts))
+
+      return json({ conv, timeline })
+    }
+
+    // ── Insights ─────────────────────────────────────────────────────────────
+
+    if (path === '/api/insights' && method === 'GET') {
+      const limit = parseInt(url.searchParams.get('limit') ?? '5')
+      return json(listInsightReports(limit))
+    }
+
+    if (path === '/api/insights/latest' && method === 'GET') {
+      const report = getLatestInsightReport()
+      if (!report) return json({ available: false })
+      return json({ available: true, ...report })
+    }
+
+    if (path === '/api/insights/generate' && method === 'POST') {
+      const body = await req.json().catch(() => ({})) as { days?: number }
+      const days = Math.max(1, Math.min(90, body.days ?? 7))
+      const report = await generateInsightReport(days)
+      if (!report) return json({ error: 'Not enough conversation data to generate a report (need at least 3 resolved/escalated conversations)' }, 422)
+      logEvent('insights', 'Manual report generated', `${days} days, ${report.top_issues.length} issues`)
+      return json(report)
+    }
+
+    // ── Voice calls ───────────────────────────────────────────────────────────
+
+    if (path === '/api/voice-calls' && method === 'GET') {
+      const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50'), 200)
+      return json(all(`
+        SELECT vc.*, c.name as customer_name
+        FROM voice_calls vc
+        LEFT JOIN customers c ON c.id = vc.customer_id
+        ORDER BY vc.started_at DESC LIMIT ?
+      `, limit))
     }
 
     return json({ error: 'Not found' }, 404)

@@ -1,6 +1,6 @@
 {
   "name": "cx-agent",
-  "version": "1.2.2",
+  "version": "1.3.0",
   "description": "Autonomous omni-channel customer support agent",
   "author": "Dafdevs",
   "type": "module",
@@ -15,7 +15,9 @@
     "app": "electron .",
     "app:build": "electron-builder --win --x64",
     "app:build:dir": "electron-builder --win --dir --x64",
-    "app:publish": "electron-builder --win --x64 --publish always"
+    "app:publish": "electron-builder --win --x64 --publish always",
+    "simulate": "bun run src/qa/simulate.ts",
+    "mcp": "bun run src/mcp/server.ts"
   },
   "build": {
     "appId": "com.theagency.cxagent",

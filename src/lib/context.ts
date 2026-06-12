@@ -1,4 +1,5 @@
 import { all, first } from './db.js'
+import { getPreferences, type CustomerPreferences } from './customer-memory.js'
 
 export interface CustomerContext {
   customer: Record<string, unknown> | null
@@ -9,13 +10,14 @@ export interface CustomerContext {
   pendingConfirmation: Record<string, unknown> | null
   identityVerified: boolean
   channel: string
+  preferences: CustomerPreferences | null
 }
 
 export async function assembleContext(conversationId: string): Promise<CustomerContext> {
   const conv = first<Record<string, string | number>>(
     `SELECT * FROM conversations WHERE id = ?`, conversationId
   )
-  if (!conv) return { customer: null, orders: [], subscription: null, recentInvoices: [], priorContacts: 0, pendingConfirmation: null, identityVerified: false, channel: 'web' }
+  if (!conv) return { customer: null, orders: [], subscription: null, recentInvoices: [], priorContacts: 0, pendingConfirmation: null, identityVerified: false, channel: 'web', preferences: null }
 
   const customerId = conv['customer_id']
 
@@ -46,10 +48,13 @@ export async function assembleContext(conversationId: string): Promise<CustomerC
     ? JSON.parse(conv['pending_confirmation_json'] as string)
     : null
 
+  const preferences = customer ? getPreferences(String(customerId)) : null
+
   return {
     customer, orders, subscription, recentInvoices, priorContacts, pendingConfirmation,
     identityVerified: Boolean(conv['identity_verified']),
     channel: String(conv['channel'] ?? 'web'),
+    preferences,
   }
 }
 
@@ -93,6 +98,22 @@ export function formatContextForPrompt(ctx: CustomerContext): string {
 
   lines.push(`\n## Session`)
   lines.push(`Channel: ${ctx.channel} | Identity verified: ${ctx.identityVerified ? 'YES' : 'NO — verify before disclosing account data'}`)
+
+  if (ctx.preferences) {
+    const p = ctx.preferences
+    const memLines: string[] = []
+    if (p.communication_style) memLines.push(`Style: ${p.communication_style}`)
+    if (p.language) memLines.push(`Language: ${p.language}`)
+    if (p.preferred_channel) memLines.push(`Preferred channel: ${p.preferred_channel}`)
+    if (p.last_issue_category) memLines.push(`Last issue type: ${p.last_issue_category}`)
+    if (p.known_context) memLines.push(`Context: ${p.known_context}`)
+    if (p.interaction_notes) memLines.push(`Notes: ${p.interaction_notes}`)
+    if (memLines.length) {
+      lines.push(`\n## Customer Memory (from prior interactions)`)
+      lines.push(memLines.join(' | '))
+      lines.push(`Adapt your tone and approach to match the customer's known style and language preference.`)
+    }
+  }
 
   if (ctx.pendingConfirmation) {
     lines.push(`\n## PENDING CONFIRMATION`)

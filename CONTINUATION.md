@@ -314,46 +314,102 @@ All items from the product spec (`slwo gpkd dhlu mkza.txt`) are now built:
 
 ---
 
-## CURRENT STATE — v1.2.0 READY TO TAG
+## CURRENT STATE — v1.3.0 READY TO TAG
 
-All 32 spec items are built. Dashboard UI is complete. Type-check is clean.
+All 32 spec items are built plus 8 advanced CX intelligence features. TypeScript clean (`bunx tsc --noEmit` passes).
 
-**Completed in last session:**
-- ✓ Integration modal HTML + JS (renderIntegrations, openIntegrationModal, saveIntegration, testIntegration, deleteIntegration, toggleAuthFields)
-- ✓ Learning queue JS (renderLearningQueue, approveLearnItem, confirmApproveLearn, rejectLearnItem, cancelLearnEdit, toggleLqKbTitle)
-- ✓ Both wired into refresh()
-- ✓ REQUIRE_WEB_IDENTITY_VERIFICATION toggle added to settings.ts + loadStatus()
-- ✓ Version bumped to 1.2.0 in package.json
-- ✓ bunx tsc --noEmit passes clean
+**Completed in v1.3.0 (advanced CX capabilities):**
+- ✓ **Inferred CSAT** — Claude Haiku scores 100% of resolved/escalated conversations (1–10 + reason). Shown in metrics bar and per-conversation. Scored hourly via scheduler (`src/lib/inferred-csat.ts`)
+- ✓ **AI Insight Brief** — Claude Sonnet analyses last N days of conversations, clusters complaints, surfaces competitor mentions / pricing signals / product signals. Weekly email + dashboard panel. Manual trigger via dashboard. (`src/lib/insights.ts`)
+- ✓ **Conversation Replay UI** — Step-through timeline modal tab interleaving customer/agent messages and tool calls with timestamps, tiers, and verification status (`GET /api/conversations/:id/replay`)
+- ✓ **Self-Improvement Proposals** — Agent analyses failed/escalated turns in learning queue and proposes KB entries to fill the gap. Appear as `agent_proposed` items in learning queue for human approval. Runs Sunday 23:00. (`src/lib/self-improve.ts`)
+- ✓ **Memory-Rich Personalization** — Customer communication style, language, channel preference, issue history persist across sessions. Injected into every agent turn's system prompt. (`src/lib/customer-memory.ts`)
+- ✓ **Voice Channel** — Twilio TwiML gather/say loop. Bun.serve on port 4749. Starts automatically if VOICE_WEBHOOK_URL is set. (`src/channels/voice.ts`)
+- ✓ **MCP Server** — Standalone stdio JSON-RPC MCP server exposing 5 CX tools to any MCP-compatible AI agent. (`src/mcp/server.ts`, `bun run mcp`)
+- ✓ **QA Simulation CLI** — 6 synthetic personas test critical paths (password reset, refund, cancellation, distressed customer, prompt injection, large refund). Exit 1 if assertions fail. (`src/qa/simulate.ts`, `bun run simulate`)
 
 **NEXT: tag and release**
 
 ```bash
-git add -A
-git commit -m "feat: complete dashboard UI — integrations, learning queue, identity verification toggle"
-git tag v1.2.0
+git add src/ package.json CONTINUATION.md
+git commit -m "feat: v1.3.0 — inferred CSAT, AI insights, conversation replay, self-improvement, customer memory, voice, MCP, QA sim"
+git tag v1.3.0
 git push origin master --tags
 ```
-
-GitHub Actions will build the NSIS installer and publish to GitHub Releases. Running apps auto-update on next startup.
 
 **PRE-CLIENT checklist (must do before any client goes live):**
 - [ ] Remove "Skip for now →" button from setup wizard (src/dashboard/setup.ts)
 - [ ] Configure channels per client (email App Password, Twilio credentials, Meta Page Access Token)
+- [ ] Voice: configure VOICE_WEBHOOK_URL + Twilio credentials + point Twilio webhook to `{VOICE_WEBHOOK_URL}/webhook/voice`
+- [ ] Channel credentials wiring (see cx_agent_channel_wiring memory)
+
+---
+
+## Ports
+
+| Service        | Port |
+|----------------|------|
+| Dashboard      | 4747 |
+| Channel API    | 4748 |
+| Voice          | 4749 |
 
 ---
 
 ## Scheduler Jobs
 
-| Schedule       | Job                                                              |
-|----------------|------------------------------------------------------------------|
-| Every 2 min    | Poll IMAP inbox for new email                                    |
-| Every 30 min   | Close stale conversations + escalation rate alert + SLA breach   |
-| Every hour     | Send CSAT email requests for resolved conversations              |
-| Every 2 hours  | Flag stuck conversations (10+ turns, unresolved)                 |
-| Daily 09:00    | Proactive outreach to at-risk customers (overdue + active sub)   |
-| Daily 06:00    | Morning digest email to CLIENT_EMAIL                             |
-| Monday 08:00   | Weekly summary email to CLIENT_EMAIL                             |
+| Schedule         | Job                                                              |
+|------------------|------------------------------------------------------------------|
+| Every 2 min      | Poll IMAP inbox for new email                                    |
+| Every 30 min     | Close stale conversations + escalation rate alert + SLA breach   |
+| Every hour :00   | Send CSAT email requests for resolved conversations              |
+| Every hour :30   | AI-score unscored conversations (inferred CSAT, up to 15)        |
+| Every 2 hours    | Flag stuck conversations (10+ turns, unresolved)                 |
+| Daily 09:00      | Proactive outreach to at-risk customers (overdue + active sub)   |
+| Daily 06:00      | Morning digest email to CLIENT_EMAIL                             |
+| Sunday 22:00     | Generate weekly AI insight report + email brief to CLIENT_EMAIL  |
+| Sunday 23:00     | Self-improvement: agent proposes KB entries from failed turns    |
+| Monday 08:00     | Weekly summary email to CLIENT_EMAIL                             |
+
+---
+
+## New Config Keys (v1.3.0)
+
+| Key                | Description                                               |
+|--------------------|-----------------------------------------------------------|
+| VOICE_WEBHOOK_URL  | Public HTTPS URL Twilio hits (e.g. https://abc.ngrok.io). If set, voice server starts on port 4749. |
+
+---
+
+## New Scripts (v1.3.0)
+
+```bash
+bun run simulate    # QA simulation — 6 synthetic personas, exits 1 on failure
+bun run mcp         # Start MCP server (stdio, for use by AI orchestrators)
+```
+
+---
+
+## MCP Server Tools
+
+| Tool                      | Description                                    |
+|---------------------------|------------------------------------------------|
+| cx_search_knowledge_base  | Full-text search KB entries                    |
+| cx_get_metrics            | Current CX metrics (resolution, CSAT, etc.)    |
+| cx_check_customer         | Look up customer by email                      |
+| cx_list_escalations       | List open escalations                          |
+| cx_get_insights           | Latest AI insight report                       |
+
+MCP config for Claude Desktop / other clients:
+```json
+{
+  "mcpServers": {
+    "cx-agent": {
+      "command": "bun",
+      "args": ["run", "C:/path/to/cx-agent/src/mcp/server.ts"]
+    }
+  }
+}
+```
 
 ---
 
@@ -370,7 +426,7 @@ GitHub Actions will build the NSIS installer and publish to GitHub Releases. Run
 ## Release Process
 
 ```bash
-git tag v1.2.0
-git push origin v1.2.0
+git tag v1.3.0
+git push origin v1.3.0
 ```
 GitHub Actions (`release.yml`) builds NSIS installer and publishes to GitHub Releases. Running apps auto-update on next startup.

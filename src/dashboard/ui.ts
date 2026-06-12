@@ -33,6 +33,18 @@ export function dashboardHtml(): string {
   .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); display: inline-block; margin-right: 7px; box-shadow: 0 0 7px rgba(34,197,94,0.65), 0 0 2px rgba(34,197,94,0.9); }
   .client-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
   .metrics { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1px; background: var(--border); }
+  .insight-summary { font-size: 13px; line-height: 1.6; color: var(--text); margin-bottom: 16px; padding: 12px; background: rgba(99,102,241,0.06); border-radius: 8px; border-left: 3px solid var(--accent); }
+  .insight-section { margin-bottom: 12px; }
+  .insight-section h4 { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); margin-bottom: 6px; }
+  .insight-tag { display: inline-block; padding: 2px 9px; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.18); border-radius: 12px; font-size: 11px; color: var(--text); margin: 2px 3px 2px 0; }
+  .insight-tag.signal { background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.2); color: var(--amber); }
+  .insight-tag.product { background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.2); color: var(--blue); }
+  .insight-tag.competitor { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.2); color: var(--red); }
+  .cluster-row { padding: 8px 10px; background: rgba(8,10,16,0.5); border-radius: 6px; margin-bottom: 5px; }
+  .cluster-row .cn { font-weight: 500; font-size: 12px; }
+  .cluster-row .cc { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .voice-row { display: grid; grid-template-columns: 80px 1fr 70px 70px 80px; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .voice-row:last-child { border-bottom: none; }
   .mc {
     background: linear-gradient(180deg, rgba(255,255,255,0.032) 0%, var(--surface) 55%);
     padding: 18px 20px; position: relative; overflow: hidden;
@@ -280,10 +292,10 @@ export function dashboardHtml(): string {
 <div class="metrics">
   <div class="mc"><div class="label">Resolution Rate</div><div class="value green" id="m-res">—</div><div class="sub">last 30 days</div></div>
   <div class="mc"><div class="label">FCR Rate</div><div class="value" id="m-fcr">—</div><div class="sub">first contact</div></div>
-  <div class="mc"><div class="label">CSAT</div><div class="value" id="m-csat">—</div><div class="sub" id="m-csat-count">/ 5.0</div></div>
+  <div class="mc"><div class="label">Survey CSAT</div><div class="value" id="m-csat">—</div><div class="sub" id="m-csat-count">/ 5.0</div></div>
+  <div class="mc"><div class="label">AI CSAT</div><div class="value" id="m-ai-csat">—</div><div class="sub" id="m-ai-csat-count">/ 10 auto-scored</div></div>
   <div class="mc"><div class="label">Escalation Rate</div><div class="value" id="m-esc">—</div><div class="sub" id="m-esc-total">open escalations</div></div>
   <div class="mc"><div class="label">Conversations</div><div class="value" id="m-vol">—</div><div class="sub" id="m-vol-sub">this week</div></div>
-  <div class="mc"><div class="label">Avg Turns</div><div class="value" id="m-turns">—</div><div class="sub">to resolve</div></div>
 </div>
 
 <div class="layout">
@@ -364,6 +376,24 @@ export function dashboardHtml(): string {
         <button class="btn btn-p" onclick="openCustModal()">+ Add Customer</button>
       </h2>
       <div id="cust-list"><div class="empty">No customers yet</div></div>
+    </div>
+
+    <!-- AI Intelligence Brief -->
+    <div class="panel" id="insights-panel">
+      <h2 style="display:flex;justify-content:space-between;align-items:center">
+        <span>Intelligence Brief <span class="badge b-open" id="insights-badge" style="display:none">New</span></span>
+        <div style="display:flex;gap:6px">
+          <span id="insights-period" style="font-size:11px;color:var(--muted);align-self:center"></span>
+          <button class="btn btn-g" onclick="generateInsights()" id="insights-generate-btn">Generate</button>
+        </div>
+      </h2>
+      <div id="insights-content"><div class="empty">No report yet — click Generate to create the first AI insight brief</div></div>
+    </div>
+
+    <!-- Voice Calls -->
+    <div class="panel" id="voice-calls-panel" style="display:none">
+      <h2>Voice Calls <span class="badge b-open" id="voice-count">0</span></h2>
+      <div id="voice-list"></div>
     </div>
 
     <!-- Test Agent -->
@@ -596,17 +626,20 @@ export function dashboardHtml(): string {
 
 <!-- Conversation Detail Modal -->
 <div class="modal" id="conv-modal">
-  <div class="modal-box">
+  <div class="modal-box" style="width:700px;max-width:96vw">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <h3 id="modal-title">Conversation</h3>
       <button class="btn btn-g" onclick="closeModal()">✕ Close</button>
     </div>
+    <div id="modal-ai-csat" style="display:none;margin-bottom:12px;padding:8px 12px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:7px;font-size:12px"></div>
     <div class="tabs">
       <div class="tab active" onclick="showTab('messages')">Messages</div>
       <div class="tab" onclick="showTab('actions')">Actions</div>
+      <div class="tab" onclick="showTab('replay')">Replay</div>
     </div>
     <div id="tab-messages"></div>
     <div id="tab-actions" style="display:none"></div>
+    <div id="tab-replay" style="display:none"></div>
     <div style="margin-top:16px;display:flex;gap:8px" id="modal-actions"></div>
   </div>
 </div>
@@ -764,7 +797,7 @@ async function refresh() {
   const state = await fetch('/api/state').then(r=>r.json()).catch(()=>null)
   if (!state) return
   if (state.clientName) document.getElementById('client-name').textContent = state.clientName + ' — Customer Experience'
-  renderMetrics(state.metrics)
+  renderMetrics(state.metrics, state.aiCsatStats)
   renderApprovals(state.pendingApprovals || [])
   renderInbox(state.inbox || [])
   renderChannelStatus(state.channelStatus)
@@ -780,6 +813,8 @@ async function refresh() {
   renderAuthority(state.authorityConfig || [])
   renderIntegrations(state.integrations || [])
   renderLearningQueue(state.learningQueue || [])
+  renderInsights(state.latestInsight)
+  renderVoiceCalls(state.voiceCalls || [])
   populateTestDropdown(state.customers || [])
   if (state.chatPort) {
     window._chatPort = state.chatPort
@@ -789,7 +824,7 @@ async function refresh() {
   document.getElementById('footer-time').textContent = new Date().toLocaleString('en-GB')
 }
 
-function renderMetrics(m) {
+function renderMetrics(m, aiCsatStats) {
   if (!m) return
   const r = m.resolution, s = m.sentiment, v = m.volume, e = m.escalations
   const resEl = document.getElementById('m-res')
@@ -800,13 +835,18 @@ function renderMetrics(m) {
   csatEl.textContent = s.avg_csat ?? '—'
   if (s.avg_csat) csatEl.className = 'value ' + (s.avg_csat >= 4 ? 'green' : s.avg_csat >= 3 ? 'amber' : 'red')
   document.getElementById('m-csat-count').textContent = s.csat_count + ' ratings'
+  // AI CSAT
+  const aiCsat = aiCsatStats?.avg
+  const aiCsatEl = document.getElementById('m-ai-csat')
+  aiCsatEl.textContent = aiCsat ? aiCsat + '/10' : '—'
+  if (aiCsat) aiCsatEl.className = 'value ' + (aiCsat >= 7 ? 'green' : aiCsat >= 5 ? 'amber' : 'red')
+  document.getElementById('m-ai-csat-count').textContent = (aiCsatStats?.count ?? 0) + ' auto-scored'
   const escEl = document.getElementById('m-esc')
   escEl.textContent = e.escalation_rate_pct + '%'
   escEl.className = 'value ' + (e.escalation_rate_pct <= 10 ? 'green' : e.escalation_rate_pct <= 25 ? 'amber' : 'red')
   document.getElementById('m-esc-total').textContent = e.total_escalations + ' total'
   document.getElementById('m-vol').textContent = v.this_week
   document.getElementById('m-vol-sub').textContent = \`\${v.today} today · \${v.this_month} month\`
-  document.getElementById('m-turns').textContent = r.avg_turns_to_resolve || '—'
 }
 
 function renderEscalations(escs) {
@@ -854,9 +894,12 @@ function renderRecent(convs) {
     const statusBadge = c.escalated
       ? '<span class="badge b-esc">escalated</span>'
       : c.status==='resolved' ? '<span class="badge b-res">resolved</span>' : '<span class="badge b-open">open</span>'
+    const aiScore = c.ai_csat_score != null
+      ? \`<span title="\${esc(c.ai_csat_reason||'')}" style="font-size:10px;padding:2px 6px;border-radius:4px;margin-left:4px;background:\${c.ai_csat_score>=7?'rgba(34,197,94,.12)':c.ai_csat_score>=5?'rgba(245,158,11,.12)':'rgba(239,68,68,.12)'};color:\${c.ai_csat_score>=7?'var(--green)':c.ai_csat_score>=5?'var(--amber)':'var(--red)'}">AI \${c.ai_csat_score}/10</span>\`
+      : ''
     return \`<div class="row">
       <div class="row-info">
-        <div class="title">\${esc(c.customer_name)} \${tierBadge(c.customer_tier)} \${statusBadge}</div>
+        <div class="title">\${esc(c.customer_name)} \${tierBadge(c.customer_tier)} \${statusBadge}\${aiScore}</div>
         <div class="meta">\${c.turn_count} turns · \${c.resolution_method || 'in progress'} · \${fmt(c.started_at)}</div>
       </div>
       <button class="btn btn-g" onclick="openConv('\${c.id}')">View</button>
@@ -927,17 +970,32 @@ async function openConv(id) {
   currentConvId = id
   document.getElementById('conv-modal').classList.add('open')
   document.getElementById('modal-title').textContent = 'Loading...'
+  document.getElementById('modal-ai-csat').style.display = 'none'
   document.getElementById('tab-messages').innerHTML = '<div class="empty"><span class="spinner"></span></div>'
   document.getElementById('tab-actions').innerHTML = ''
+  document.getElementById('tab-replay').innerHTML = ''
   document.getElementById('modal-actions').innerHTML = ''
 
-  const data = await fetch(\`/api/conversations/\${id}\`).then(r=>r.json())
+  const [data, replayData] = await Promise.all([
+    fetch(\`/api/conversations/\${id}\`).then(r=>r.json()),
+    fetch(\`/api/conversations/\${id}/replay\`).then(r=>r.json()).catch(()=>null),
+  ])
   const c = data.conversation
-  document.getElementById('modal-title').textContent = \`\${c.customer_name} (\${c.customer_tier}) · \${c.turn_count} turns · \${c.status}\`
+  document.getElementById('modal-title').textContent = \`\${c.customer_name} (\${c.customer_tier || 'standard'}) · \${c.turn_count} turns · \${c.status} · \${c.channel||'web'}\`
+
+  // AI CSAT banner
+  if (replayData?.conv?.ai_csat_score != null) {
+    const score = replayData.conv.ai_csat_score
+    const reason = replayData.conv.ai_csat_reason || ''
+    const color = score >= 7 ? 'var(--green)' : score >= 5 ? 'var(--amber)' : 'var(--red)'
+    const aiCsatEl = document.getElementById('modal-ai-csat')
+    aiCsatEl.innerHTML = \`<span style="color:\${color};font-weight:600">AI CSAT \${score}/10</span><span style="color:var(--muted);margin-left:8px">\${esc(reason)}</span>\`
+    aiCsatEl.style.display = ''
+  }
 
   document.getElementById('tab-messages').innerHTML = (data.messages||[]).map(m => \`
     <div class="msg msg-\${m.role}">
-      <div style="font-size:10px;color:var(--muted);margin-bottom:4px">\${m.role.toUpperCase()} · \${fmt(m.created_at)}\${m.frustration_flag?'  ⚠ frustration':''}</div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:4px">\${m.role.toUpperCase()} · \${fmt(m.created_at)}\${m.frustration_flag?' <span style="color:var(--amber)">⚠ frustration</span>':''}</div>
       \${esc(m.content)}
     </div>\`).join('') || '<div class="empty">No messages</div>'
 
@@ -949,6 +1007,39 @@ async function openConv(id) {
       <span style="color:var(--muted)">\${a.verified ? 'verified' : 'unverified'}</span>
       <span style="color:var(--muted)">\${fmt(a.created_at)}</span>
     </div>\`).join('') || '<div class="empty">No actions taken</div>'
+
+  // Replay tab — unified timeline
+  if (replayData?.timeline) {
+    document.getElementById('tab-replay').innerHTML = replayData.timeline.map(item => {
+      if (item.type === 'message') {
+        const m = item.data
+        const isCustomer = m.role === 'customer'
+        return \`<div style="margin-bottom:8px">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:3px;display:flex;gap:8px;align-items:center">
+            <span style="font-weight:700;color:\${isCustomer?'var(--accent)':'var(--green)'}">
+              \${isCustomer ? '👤 CUSTOMER' : '🤖 AGENT'}
+            </span>
+            <span>\${fmt(item.ts)}</span>
+            \${m.frustration_flag ? '<span style="color:var(--amber)">⚠ frustration detected</span>' : ''}
+          </div>
+          <div class="msg msg-\${m.role}" style="margin:0">\${esc(String(m.content||''))}</div>
+        </div>\`
+      } else {
+        const a = item.data
+        const ok = a.success && a.verified
+        const tierColor = a.authority_tier === 'auto' ? 'var(--green)' : a.authority_tier === 'confirm' ? 'var(--amber)' : 'var(--red)'
+        let inputPreview = ''
+        try { const inp = JSON.parse(String(a.input_json||'{}')); inputPreview = Object.entries(inp).slice(0,3).map(([k,v])=>\`\${k}=\${String(v).slice(0,30)}\`).join(', ') } catch {}
+        return \`<div style="margin-bottom:5px;padding:6px 10px;background:rgba(8,10,16,0.65);border:1px solid rgba(255,255,255,0.04);border-radius:5px;display:flex;gap:10px;align-items:center;font-size:11px">
+          <span style="color:\${ok?'var(--green)':'var(--red)'};\${ok?'':'opacity:.7'}">\${ok?'✓':'✗'}</span>
+          <span style="font-weight:600">\${esc(String(a.action_name||''))}</span>
+          <span style="padding:1px 6px;border-radius:3px;font-size:9px;font-weight:700;background:rgba(0,0,0,0.3);color:\${tierColor}">\${String(a.authority_tier||'').toUpperCase()}</span>
+          \${inputPreview ? \`<span style="color:var(--muted)">\${esc(inputPreview)}</span>\` : ''}
+          <span style="color:var(--muted);margin-left:auto">\${fmt(item.ts)}</span>
+        </div>\`
+      }
+    }).join('') || '<div class="empty">No timeline data</div>'
+  }
 
   const actions = document.getElementById('modal-actions')
   if (data.escalation && !data.escalation.resolved_at) {
@@ -966,6 +1057,7 @@ function showTab(name) {
   event.target.classList.add('active')
   document.getElementById('tab-messages').style.display = name==='messages' ? '' : 'none'
   document.getElementById('tab-actions').style.display = name==='actions' ? '' : 'none'
+  document.getElementById('tab-replay').style.display = name==='replay' ? '' : 'none'
 }
 
 async function resolveEsc(id) {
@@ -1377,15 +1469,30 @@ function renderLearningQueue(items) {
   document.getElementById('learning-count').textContent = String(pending.length)
   if (!pending.length) { el.innerHTML = '<div class="empty">No items pending review</div>'; return }
   el.innerHTML = pending.map(item => {
-    const typeColor = item.improvement_type === 'escalation' ? 'var(--red)' : 'var(--amber)'
+    const isAgentProposed = item.improvement_type === 'agent_proposed'
+    const typeColor = item.improvement_type === 'escalation' ? 'var(--red)' : isAgentProposed ? 'var(--accent)' : 'var(--amber)'
+    // For agent-proposed items, parse the suggested KB entry
+    let agentProposedPreview = ''
+    if (isAgentProposed && item.suggested_correction) {
+      try {
+        const p = JSON.parse(item.suggested_correction)
+        agentProposedPreview = \`<div style="margin:4px 0 2px;padding:6px 8px;background:rgba(99,102,241,0.06);border-radius:5px;border-left:2px solid var(--accent)">
+          <div style="font-size:11px;font-weight:600;color:var(--text)">\${esc(p.title||'')}</div>
+          <div style="font-size:10px;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">\${esc(p.category||'')}</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.4">\${esc((p.content||'').slice(0,150))}\${(p.content||'').length>150?'…':''}</div>
+        </div>\`
+      } catch {}
+    }
     return \`<div class="row" id="lq-\${item.id}" style="flex-direction:column;align-items:stretch;gap:5px">
       <div style="display:flex;align-items:center;gap:8px">
         <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:\${typeColor}">\${esc(item.improvement_type||'review')}</span>
         <span style="font-size:10px;color:var(--muted)">\${fmt(item.created_at)}</span>
         \${item.customer_name ? '<span style="font-size:10px;color:var(--muted)">· ' + esc(item.customer_name) + '</span>' : ''}
       </div>
-      <div style="font-size:12px;line-height:1.4"><span style="color:var(--muted)">Customer: </span>\${esc((item.customer_message||'').slice(0,100))}</div>
-      <div style="font-size:12px;line-height:1.4"><span style="color:var(--muted)">Agent: </span>\${esc((item.agent_response||'').slice(0,100))}</div>
+      \${isAgentProposed ? agentProposedPreview : \`
+        <div style="font-size:12px;line-height:1.4"><span style="color:var(--muted)">Customer: </span>\${esc((item.customer_message||'').slice(0,100))}</div>
+        <div style="font-size:12px;line-height:1.4"><span style="color:var(--muted)">Agent: </span>\${esc((item.agent_response||'').slice(0,100))}</div>
+      \`}
       <div id="lq-edit-\${item.id}" style="display:none;margin-top:4px">
         <textarea id="lq-text-\${item.id}" rows="2" placeholder="Corrected response (optional — leave blank to just approve)" style="width:100%;padding:6px 8px;background:var(--bg);border:1px solid var(--accent);border-radius:5px;color:var(--text);font-size:12px;font-family:inherit;resize:vertical;outline:none;box-sizing:border-box;margin-bottom:6px"></textarea>
         <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);margin-bottom:6px;cursor:pointer">
@@ -1437,6 +1544,112 @@ async function confirmApproveLearn(id) {
 async function rejectLearnItem(id) {
   await fetch(\`/api/learning-queue/\${id}/reject\`, { method: 'POST' })
   refresh()
+}
+
+// ── Intelligence Brief (Insights) ─────────────────────────────────────────────
+
+function renderInsights(report) {
+  const el = document.getElementById('insights-content')
+  const badge = document.getElementById('insights-badge')
+
+  if (!report) {
+    el.innerHTML = '<div class="empty">No report yet — click Generate to create the first AI insight brief from your conversation data</div>'
+    badge.style.display = 'none'
+    return
+  }
+
+  const period = \`\${new Date(report.period_start).toLocaleDateString('en-GB')} – \${new Date(report.period_end).toLocaleDateString('en-GB')}\`
+  document.getElementById('insights-period').textContent = period
+  badge.style.display = ''
+
+  let html = \`<div class="insight-summary">\${esc(report.summary)}</div>\`
+
+  if (report.top_issues?.length) {
+    html += \`<div class="insight-section">
+      <h4>Top Issues</h4>
+      \${report.top_issues.map(i => \`<span class="insight-tag">\${esc(i)}</span>\`).join('')}
+    </div>\`
+  }
+
+  if (report.complaint_clusters?.length) {
+    html += \`<div class="insight-section">
+      <h4>Complaint Clusters</h4>
+      \${report.complaint_clusters.map(c => \`
+        <div class="cluster-row">
+          <div class="cn">\${esc(c.cluster)} <span style="color:var(--muted);font-weight:400;font-size:11px">(\${c.count} cases)</span></div>
+          \${c.examples?.length ? \`<div class="cc">\${esc(c.examples.slice(0,2).join(' · '))}</div>\` : ''}
+        </div>
+      \`).join('')}
+    </div>\`
+  }
+
+  if (report.pricing_signals?.length) {
+    html += \`<div class="insight-section">
+      <h4>Pricing Signals</h4>
+      \${report.pricing_signals.map(s => \`<span class="insight-tag signal">\${esc(s)}</span>\`).join('')}
+    </div>\`
+  }
+
+  if (report.product_signals?.length) {
+    html += \`<div class="insight-section">
+      <h4>Product Signals</h4>
+      \${report.product_signals.map(s => \`<span class="insight-tag product">\${esc(s)}</span>\`).join('')}
+    </div>\`
+  }
+
+  if (report.competitor_mentions?.length) {
+    html += \`<div class="insight-section">
+      <h4>Competitor Mentions</h4>
+      \${report.competitor_mentions.map(s => \`<span class="insight-tag competitor">\${esc(s)}</span>\`).join('')}
+    </div>\`
+  }
+
+  el.innerHTML = html
+}
+
+async function generateInsights() {
+  const btn = document.getElementById('insights-generate-btn')
+  btn.textContent = 'Generating…'
+  btn.disabled = true
+  try {
+    const res = await fetch('/api/insights/generate', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ days: 7 }),
+    })
+    const d = await res.json()
+    if (!res.ok) {
+      alert(d.error || 'Generation failed. Make sure there are resolved conversations to analyse.')
+    } else {
+      renderInsights(d)
+    }
+  } finally {
+    btn.textContent = 'Generate'
+    btn.disabled = false
+  }
+}
+
+// ── Voice Calls ───────────────────────────────────────────────────────────────
+
+function renderVoiceCalls(calls) {
+  const panel = document.getElementById('voice-calls-panel')
+  const el = document.getElementById('voice-list')
+  document.getElementById('voice-count').textContent = String(calls.length)
+  panel.style.display = calls.length ? '' : 'none'
+  if (!calls.length) return
+  const statusColor = { resolved:'var(--green)', escalated:'var(--red)', completed:'var(--muted)', in_progress:'var(--accent)' }
+  el.innerHTML = calls.map(vc => \`
+    <div class="voice-row">
+      <div style="font-size:11px;font-weight:600;color:\${statusColor[vc.status]||'var(--muted)'}">📞 \${(vc.status||'').toUpperCase()}</div>
+      <div>
+        <div style="font-weight:500;font-size:12px">\${esc(vc.customer_name || vc.from_number)}</div>
+        <div style="font-size:11px;color:var(--muted)">\${vc.from_number}</div>
+      </div>
+      <div style="font-size:11px;color:var(--muted)">\${vc.duration_seconds ? Math.round(vc.duration_seconds/60)+'m' : '—'}</div>
+      <div style="font-size:10px;color:var(--muted)">\${fmt(vc.started_at)}</div>
+      <div>\${vc.conversation_id ? \`<button class="btn btn-g" style="font-size:10px;padding:3px 8px" onclick="openConv('\${vc.conversation_id}')">View</button>\` : ''}</div>
+    </div>
+  \`).join('')
 }
 
 refresh()
