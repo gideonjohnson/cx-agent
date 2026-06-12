@@ -1,0 +1,84 @@
+{
+  "name": "cx-agent",
+  "version": "1.2.0",
+  "description": "Autonomous omni-channel customer support agent",
+  "author": "Dafdevs",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "scheduler": "bun run src/scheduler.ts",
+    "dashboard": "bun run src/dashboard/server.ts",
+    "seed": "bun run src/seed.ts",
+    "chat": "bun run src/channels/web.ts",
+    "dev": "bun --watch src/index.ts",
+    "app": "electron .",
+    "app:build": "electron-builder --win --x64",
+    "app:build:dir": "electron-builder --win --dir --x64",
+    "app:publish": "electron-builder --win --x64 --publish always"
+  },
+  "build": {
+    "appId": "com.theagency.cxagent",
+    "productName": "CX Agent",
+    "asar": false,
+    "publish": {
+      "provider": "github",
+      "owner": "gideonjohnson",
+      "repo": "cx-agent"
+    },
+    "files": [
+      "electron/**/*",
+      "src/**/*",
+      "package.json",
+      "tsconfig.json",
+      ".env.example",
+      "!**/node_modules/**",
+      "!**/.git/**",
+      "!**/installer/**",
+      "!**/dist/**",
+      "!**/*.db",
+      "!**/.env"
+    ],
+    "win": {
+      "icon": "electron/icon.ico",
+      "certificateFile": "${env.CSC_LINK}",
+      "certificatePassword": "${env.CSC_KEY_PASSWORD}",
+      "target": [{
+        "target": "nsis",
+        "arch": ["x64"]
+      }]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "CX Agent",
+      "deleteAppDataOnUninstall": false
+    },
+    "extraFiles": [
+      {
+        "from": "bun.lock",
+        "to": "resources/app/bun.lock"
+      }
+    ],
+    "directories": {
+      "output": "dist/installer"
+    }
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.98.0",
+    "electron-updater": "^6.8.9",
+    "imapflow": "^1.0.175",
+    "mailparser": "^3.7.2",
+    "nodemailer": "^8.0.8",
+    "node-cron": "^4.2.1"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/mailparser": "^3.4.5",
+    "@types/nodemailer": "^6.4.14",
+    "electron": "^42.4.0",
+    "electron-builder": "^26.15.2"
+  }
+}
