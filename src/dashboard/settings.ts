@@ -314,6 +314,34 @@ export function getSettingsHtml(): string {
     </div>
   </div>
 
+  <!-- Telegram operator bot -->
+  <div class="section">
+    <div class="section-title">Telegram — Operator Bot</div>
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:18px;line-height:1.6">Control CX Agent from your phone. Get escalation alerts, approve replies, and query the agent in plain English — all from Telegram.</p>
+    <div class="field">
+      <label>Bot token <span style="color:#475569;font-weight:400">(from @BotFather → /newbot)</span></label>
+      <div class="field-row">
+        <input type="password" id="TELEGRAM_BOT_TOKEN" placeholder="7123456789:AAHdqT...">
+        <button class="btn-save" onclick="save('TELEGRAM_BOT_TOKEN')">Save</button>
+        <span class="saved" id="saved-TELEGRAM_BOT_TOKEN">Saved ✓</span>
+      </div>
+      <p class="hint">Open Telegram → search <strong>@BotFather</strong> → send <code>/newbot</code> → copy the token here.</p>
+    </div>
+    <div class="field">
+      <label>Operator chat ID <span style="color:#475569;font-weight:400">(auto-filled on first /start)</span></label>
+      <div class="field-row">
+        <input type="text" id="TELEGRAM_CHAT_ID" placeholder="Auto-registered when you send /start to your bot">
+        <button class="btn-save" onclick="save('TELEGRAM_CHAT_ID')">Save</button>
+        <span class="saved" id="saved-TELEGRAM_CHAT_ID">Saved ✓</span>
+      </div>
+      <p class="hint">After saving the token and restarting, open your bot in Telegram and send <code>/start</code>. The chat ID registers automatically. Or find it via <a href="https://t.me/userinfobot" target="_blank">@userinfobot</a>.</p>
+    </div>
+    <div class="field">
+      <button class="btn-save" style="background:#1e2330;color:#94a3b8;border:1px solid #252a35" onclick="testChannel('telegram')">Test Telegram connection</button>
+      <span id="test-telegram-result" style="font-size:12px;margin-left:10px"></span>
+    </div>
+  </div>
+
   <!-- Chat widget embed -->
   <div class="section">
     <div class="section-title">Chat Widget</div>
@@ -367,8 +395,9 @@ async function loadStatus() {
   if (d.client_email) document.getElementById('CLIENT_EMAIL').value = d.client_email
   if (d.smtp_user)    document.getElementById('SMTP_USER').value    = d.smtp_user
 
-  if (ch.email?.user) document.getElementById('IMAP_USER').value = ch.email.user
-  if (ch.sms?.phone)  document.getElementById('TWILIO_PHONE_NUMBER').value = ch.sms.phone
+  if (ch.email?.user)     document.getElementById('IMAP_USER').value = ch.email.user
+  if (ch.sms?.phone)     document.getElementById('TWILIO_PHONE_NUMBER').value = ch.sms.phone
+  if (ch.telegram?.chatId) document.getElementById('TELEGRAM_CHAT_ID').value = ch.telegram.chatId
 
   const port = ch.web?.port || 4748
   const host = location.hostname || 'YOUR_SERVER_IP'

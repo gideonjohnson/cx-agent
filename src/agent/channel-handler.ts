@@ -3,6 +3,7 @@ import { getConfig } from '../lib/config.js'
 import { logEvent } from '../lib/events.js'
 import { handleCustomerMessage } from './resolver.js'
 import { sanitizeCustomerInput } from '../lib/sanitize.js'
+import { notifyOperator } from '../channels/telegram.js'
 
 // In-memory rate limiter: max 20 messages per conversation per 10 minutes
 const messageTimestamps = new Map<string, number[]>()
@@ -169,6 +170,16 @@ export async function processInbound(payload: InboundPayload): Promise<ProcessRe
     `UPDATE inbound_messages SET agent_reply = ?, agent_reply_sent = 0, agent_action = ?, status = ?, handled_at = datetime('now') WHERE id = ?`,
     result.response, result.actionsTaken?.join(', ') ?? null, status, msgId
   )
+
+  if (status === 'escalated') {
+    notifyOperator(
+      `🚨 *Escalation* [${payload.channel}]\nFrom: \`${payload.senderId.slice(0,40)}\`\n${payload.body.slice(0,120)}`
+    ).catch(() => {})
+  } else if (status === 'awaiting_approval') {
+    notifyOperator(
+      `⏳ *Approval needed* [${payload.channel}]\nFrom: \`${payload.senderId.slice(0,40)}\`\nSend \`/approve ${msgId.slice(0,8)}\` to send the reply.`
+    ).catch(() => {})
+  }
 
   return {
     messageId: msgId, customerId: customer.id, conversationId: convId,

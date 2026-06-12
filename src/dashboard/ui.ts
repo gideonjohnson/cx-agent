@@ -23,22 +23,32 @@ export function dashboardHtml(): string {
     background-size: 24px 24px;
   }
   header {
-    background: linear-gradient(180deg, rgba(255,255,255,0.022) 0%, var(--surface) 100%);
+    background: linear-gradient(180deg, rgba(255,255,255,0.028) 0%, var(--surface) 100%);
     border-bottom: 1px solid var(--border); padding: 12px 24px;
     display: flex; align-items: center; justify-content: space-between;
-    box-shadow: var(--sh-sm); position: relative; z-index: 10;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
+    position: relative; z-index: 10;
   }
   header h1 { font-size: 15px; font-weight: 600; }
   .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); display: inline-block; margin-right: 7px; box-shadow: 0 0 7px rgba(34,197,94,0.65), 0 0 2px rgba(34,197,94,0.9); }
   .client-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
   .metrics { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1px; background: var(--border); }
   .mc {
-    background: linear-gradient(180deg, rgba(255,255,255,0.028) 0%, var(--surface) 55%);
-    padding: 18px 20px; box-shadow: var(--hi); position: relative; overflow: hidden;
+    background: linear-gradient(180deg, rgba(255,255,255,0.032) 0%, var(--surface) 55%);
+    padding: 18px 20px; position: relative; overflow: hidden;
+    box-shadow: var(--hi), 0 2px 8px rgba(0,0,0,0.3);
+    transition: transform .18s cubic-bezier(.4,0,.2,1), box-shadow .18s;
+    cursor: default;
   }
+  .mc:hover {
+    transform: translateY(-2px) scale(1.015);
+    box-shadow: var(--hi), 0 6px 20px rgba(0,0,0,0.45), 0 0 0 1px rgba(99,102,241,0.12);
+    z-index: 2;
+  }
+  .mc:active { transform: translateY(0) scale(1); }
   .mc::after {
     content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
-    background: linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.18) 50%, transparent 100%);
+    background: linear-gradient(90deg, transparent 0%, rgba(99,102,241,0.22) 50%, transparent 100%);
   }
   .mc .label { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 8px; }
   .mc .value { font-size: 26px; font-weight: 700; line-height: 1; }
@@ -47,7 +57,12 @@ export function dashboardHtml(): string {
   .layout { display: grid; grid-template-columns: 1fr 320px; gap: 1px; background: var(--border); height: calc(100vh - 124px); overflow: hidden; }
   .main-col { overflow-y: auto; display: flex; flex-direction: column; gap: 1px; background: var(--border); }
   .sidebar { overflow-y: auto; display: flex; flex-direction: column; gap: 1px; background: rgba(8,10,16,0.5); }
-  .panel { background: var(--surface); padding: 18px 20px; box-shadow: var(--hi); }
+  .panel {
+    background: var(--surface); padding: 18px 20px;
+    box-shadow: var(--hi), 0 1px 6px rgba(0,0,0,0.35);
+    transition: box-shadow .18s;
+  }
+  .panel:hover { box-shadow: var(--hi), 0 2px 12px rgba(0,0,0,0.45); }
   .sidebar .panel { background: linear-gradient(180deg, rgba(255,255,255,0.016) 0%, #13161e 100%); }
   .panel h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
   .badge { padding: 2px 7px; border-radius: 9999px; font-size: 10px; font-weight: 700; }
@@ -73,6 +88,7 @@ export function dashboardHtml(): string {
     box-shadow: 0 3px 10px rgba(0,0,0,0.35), 0 0 14px rgba(99,102,241,0.3), inset 0 1px 0 rgba(255,255,255,0.12);
     transform: translateY(-1px);
   }
+  .btn-p:active { transform: translateY(0); box-shadow: 0 1px 3px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12); }
   .btn-g {
     background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: var(--muted);
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
@@ -82,6 +98,7 @@ export function dashboardHtml(): string {
     box-shadow: 0 2px 6px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.06);
     transform: translateY(-1px);
   }
+  .btn-g:active { transform: translateY(0); box-shadow: inset 0 1px 3px rgba(0,0,0,0.25); }
   .btn-r {
     background: rgba(239,68,68,.12); color: var(--red);
     box-shadow: inset 0 1px 0 rgba(239,68,68,0.1);

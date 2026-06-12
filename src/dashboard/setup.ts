@@ -9,37 +9,81 @@ export function getSetupHtml(): string {
     *{box-sizing:border-box;margin:0;padding:0}
     body{
       font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
-      background:#0d0f14;
+      background:#0a0c12;
       color:#e2e8f0;min-height:100vh;
       display:flex;align-items:center;justify-content:center;padding:24px;
+      perspective:1200px;
     }
+
+    /* layered background — dot grid + radial glow */
     body::before{
       content:'';position:fixed;inset:0;
-      background-image:radial-gradient(circle at 1px 1px,rgba(99,102,241,.06) 1px,transparent 0);
-      background-size:28px 28px;pointer-events:none;
+      background-image:radial-gradient(circle at 1px 1px,rgba(99,102,241,.05) 1px,transparent 0);
+      background-size:28px 28px;pointer-events:none;z-index:0;
+    }
+    body::after{
+      content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+      background:radial-gradient(ellipse 70% 60% at 50% 40%,rgba(99,102,241,.08) 0%,transparent 70%);
     }
 
     .wizard{width:100%;max-width:560px;position:relative;z-index:1}
-    .wizard-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+    .wizard-top{
+      display:flex;align-items:center;justify-content:space-between;
+      margin-bottom:20px;padding:0 2px;
+    }
     .wizard-label{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#475569;}
+    .btn-skip-all{
+      padding:5px 12px;background:transparent;color:#374151;border:1px solid #252a35;
+      border-radius:6px;font-size:11px;cursor:pointer;transition:all .15s;
+    }
+    .btn-skip-all:hover{color:#64748b;border-color:#374151}
 
-    .progress{display:flex;align-items:center;justify-content:center;margin-bottom:36px;gap:0}
+    .progress{display:flex;align-items:center;justify-content:center;margin-bottom:28px;gap:0}
     .pdot{
       width:30px;height:30px;border-radius:50%;
       background:#161922;border:1px solid #252a35;
       display:flex;align-items:center;justify-content:center;
       font-size:11px;font-weight:600;color:#475569;z-index:1;flex-shrink:0;
-      transition:all .25s ease;
+      transition:all .3s cubic-bezier(.4,0,.2,1);
+      box-shadow:0 2px 8px rgba(0,0,0,.5);
     }
-    .pdot.active{background:#6366f1;border-color:#6366f1;color:#fff;box-shadow:0 0 0 3px rgba(99,102,241,.25)}
-    .pdot.done{background:#22c55e;border-color:#22c55e;color:#fff}
-    .pline{width:48px;height:2px;background:#252a35;flex-shrink:0;transition:background .25s}
+    .pdot.active{
+      background:#6366f1;border-color:#6366f1;color:#fff;
+      box-shadow:0 0 0 3px rgba(99,102,241,.25),0 0 18px rgba(99,102,241,.4),0 2px 8px rgba(0,0,0,.5);
+    }
+    .pdot.done{background:#22c55e;border-color:#22c55e;color:#fff;box-shadow:0 0 12px rgba(34,197,94,.35),0 2px 8px rgba(0,0,0,.5)}
+    .pline{width:48px;height:2px;background:#252a35;flex-shrink:0;transition:background .3s}
     .pline.done{background:#22c55e}
 
+    /* ── Card with tilt + deep shadow ─────────────────────────────── */
     .card{
-      background:#161922;border:1px solid #252a35;border-radius:14px;
+      background:linear-gradient(160deg,#1a1f2e 0%,#161922 60%);
+      border:1px solid rgba(255,255,255,.075);
+      border-radius:16px;
       padding:32px;
+      /* layered shadow: contact shadow + floating shadow + glow */
+      box-shadow:
+        0 1px 2px rgba(0,0,0,.6),
+        0 8px 32px rgba(0,0,0,.65),
+        0 24px 64px rgba(0,0,0,.45),
+        inset 0 1px 0 rgba(255,255,255,.07);
+      transform-style:preserve-3d;
+      transition:box-shadow .25s, transform .08s linear;
+      will-change:transform;
+      position:relative;
     }
+    /* top-edge rim light */
+    .card::before{
+      content:'';position:absolute;inset:0;border-radius:16px;pointer-events:none;
+      background:linear-gradient(180deg,rgba(255,255,255,.06) 0%,transparent 40%);
+    }
+    /* accent glow at bottom */
+    .card::after{
+      content:'';position:absolute;bottom:-24px;left:10%;right:10%;height:60px;
+      background:radial-gradient(ellipse 80% 100% at 50% 0%,rgba(99,102,241,.18) 0%,transparent 70%);
+      pointer-events:none;filter:blur(8px);
+    }
+
     .step{display:none}
     .step.active{display:block}
 
@@ -50,13 +94,18 @@ export function getSetupHtml(): string {
     label{display:block;font-size:12px;font-weight:500;color:#94a3b8;margin-bottom:6px;margin-top:16px}
     label:first-of-type{margin-top:0}
     input,select{
-      width:100%;padding:10px 12px;background:#0d0f14;
+      width:100%;padding:10px 12px;
+      background:rgba(8,10,16,.7);
       border:1px solid #252a35;border-radius:8px;
       color:#e2e8f0;font-size:14px;outline:none;
-      transition:border-color .15s;
+      box-shadow:inset 0 2px 6px rgba(0,0,0,.4);
+      transition:border-color .15s,box-shadow .15s;
     }
-    input:focus,select:focus{border-color:#6366f1}
-    input::placeholder{color:#374151}
+    input:focus,select:focus{
+      border-color:#6366f1;
+      box-shadow:inset 0 2px 6px rgba(0,0,0,.4),0 0 0 2px rgba(99,102,241,.2),0 0 14px rgba(99,102,241,.15);
+    }
+    input::placeholder{color:#2d3748}
 
     .key-wrap{position:relative}
     .key-wrap input{padding-right:90px}
@@ -80,12 +129,19 @@ export function getSetupHtml(): string {
 
     .actions{display:flex;justify-content:space-between;align-items:center;margin-top:28px}
     .btn-next{
-      padding:10px 24px;background:#6366f1;color:#fff;border:none;
+      padding:10px 24px;
+      background:linear-gradient(180deg,#7173f5 0%,#5c5fe8 100%);
+      color:#fff;border:none;
       border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;
-      transition:opacity .15s;
+      box-shadow:0 1px 3px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.12);
+      transition:opacity .15s,transform .12s,box-shadow .15s;
     }
-    .btn-next:hover{opacity:.9}
-    .btn-next:disabled{opacity:.4;cursor:not-allowed}
+    .btn-next:hover{
+      opacity:.95;transform:translateY(-1px);
+      box-shadow:0 4px 16px rgba(0,0,0,.4),0 0 18px rgba(99,102,241,.35),inset 0 1px 0 rgba(255,255,255,.12);
+    }
+    .btn-next:active{transform:translateY(0);box-shadow:0 1px 3px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.12)}
+    .btn-next:disabled{opacity:.35;cursor:not-allowed;transform:none}
     .btn-back{
       padding:10px 16px;background:transparent;color:#64748b;border:none;
       font-size:13px;cursor:pointer;transition:color .15s;
@@ -109,11 +165,18 @@ export function getSetupHtml(): string {
     .checklist li .ck{color:#22c55e;font-weight:700;min-width:16px}
     .checklist li .ck.skip{color:#475569}
     .btn-launch{
-      display:block;width:100%;padding:13px;background:#6366f1;color:#fff;
-      border:none;border-radius:10px;font-size:15px;font-weight:700;
-      cursor:pointer;transition:opacity .15s;text-align:center;
+      display:block;width:100%;padding:13px;
+      background:linear-gradient(180deg,#7173f5 0%,#5c5fe8 100%);
+      color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;
+      cursor:pointer;text-align:center;
+      box-shadow:0 2px 8px rgba(0,0,0,.4),0 0 24px rgba(99,102,241,.3),inset 0 1px 0 rgba(255,255,255,.12);
+      transition:opacity .15s,transform .12s,box-shadow .15s;
     }
-    .btn-launch:hover{opacity:.9}
+    .btn-launch:hover{
+      opacity:.95;transform:translateY(-1px);
+      box-shadow:0 6px 24px rgba(0,0,0,.4),0 0 32px rgba(99,102,241,.4),inset 0 1px 0 rgba(255,255,255,.12);
+    }
+    .btn-launch:active{transform:translateY(0)}
 
     .smtp-grid{display:grid;grid-template-columns:1fr 90px;gap:10px}
     .error-msg{font-size:12px;color:#ef4444;margin-top:8px;display:none}
@@ -123,6 +186,7 @@ export function getSetupHtml(): string {
 <div class="wizard">
   <div class="wizard-top">
     <span class="wizard-label">🎧 CX Agent — Setup</span>
+    <button class="btn-skip-all" onclick="skipSetup()">Skip setup →</button>
   </div>
 
   <div class="progress">
@@ -135,7 +199,7 @@ export function getSetupHtml(): string {
     <div class="pdot" id="dot4">4</div>
   </div>
 
-  <div class="card">
+  <div class="card" id="main-card">
 
     <!-- Step 1: Business -->
     <div class="step active" id="step1">
@@ -215,47 +279,41 @@ export function getSetupHtml(): string {
 <script>
 let emailSkipped = false
 
+// ── Step navigation ────────────────────────────────────────────────
 function setStep(n) {
   document.querySelectorAll('.step').forEach(s => s.classList.remove('active'))
   document.getElementById('step' + n).classList.add('active')
-
   for (let i = 1; i <= 4; i++) {
     const dot = document.getElementById('dot' + i)
     dot.className = 'pdot' + (i < n ? ' done' : i === n ? ' active' : '')
-    if (i < 4) {
-      document.getElementById('line' + i).className = 'pline' + (i < n ? ' done' : '')
-    }
+    if (i < 4) document.getElementById('line' + i).className = 'pline' + (i < n ? ' done' : '')
   }
 }
 
 async function goStep1() {
-  const name = document.getElementById('client-name').value.trim()
+  const name  = document.getElementById('client-name').value.trim()
   const email = document.getElementById('client-email').value.trim()
-  const err = document.getElementById('err1')
+  const err   = document.getElementById('err1')
   if (!name || !email) { err.style.display = 'block'; return }
   err.style.display = 'none'
-
   await saveConfig('CLIENT_NAME', name)
   await saveConfig('CLIENT_EMAIL', email)
   setStep(2)
 }
 
 async function goStep2() {
-  const key = document.getElementById('api-key').value.trim()
-  const err = document.getElementById('err2')
+  const key    = document.getElementById('api-key').value.trim()
+  const err    = document.getElementById('err2')
   const status = document.getElementById('key-status')
-  const btn = document.getElementById('next2')
+  const btn    = document.getElementById('next2')
   if (!key) { err.style.display = 'block'; return }
   err.style.display = 'none'
-
   btn.disabled = true
   status.className = 'key-status key-checking'
   status.textContent = 'Validating...'
-
   try {
-    const res = await fetch('/api/setup/validate-key', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const res  = await fetch('/api/setup/validate-key', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key }),
     })
     const data = await res.json()
@@ -292,16 +350,13 @@ async function goStep3() {
   const port = document.getElementById('smtp-port').value.trim()
   const user = document.getElementById('smtp-user').value.trim()
   const pass = document.getElementById('smtp-pass').value.trim()
-  const err = document.getElementById('err3')
-
+  const err  = document.getElementById('err3')
   if (!host || !port || !user || !pass) { err.style.display = 'block'; return }
   err.style.display = 'none'
-
   await saveConfig('SMTP_HOST', host)
   await saveConfig('SMTP_PORT', port)
   await saveConfig('SMTP_USER', user)
   await saveConfig('SMTP_PASS', pass)
-
   const li = document.getElementById('email-check')
   li.querySelector('.ck').textContent = '✓'
   li.querySelector('.ck').className = 'ck'
@@ -309,26 +364,56 @@ async function goStep3() {
   setStep(4)
 }
 
+async function skipSetup() {
+  await fetch('/api/setup/skip', { method: 'POST' }).catch(() => {})
+  window.location.href = '/'
+}
+
 async function saveConfig(key, value) {
   await fetch('/api/setup/config', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ key, value }),
   }).catch(() => {})
 }
 
-function launch() {
-  window.location.href = '/'
-}
+function launch() { window.location.href = '/' }
 
-// Pre-fill existing config if reloading setup
+// ── 3D card tilt ───────────────────────────────────────────────────
+const card = document.getElementById('main-card')
+const MAX_TILT = 5  // degrees
+
+document.addEventListener('mousemove', e => {
+  const cx = window.innerWidth / 2
+  const cy = window.innerHeight / 2
+  const dx = (e.clientX - cx) / cx  // -1 → 1
+  const dy = (e.clientY - cy) / cy  // -1 → 1
+  const rx = -dy * MAX_TILT
+  const ry =  dx * MAX_TILT
+  card.style.transform = \`perspective(900px) rotateX(\${rx}deg) rotateY(\${ry}deg) translateZ(4px)\`
+  // shift box-shadow to match light angle
+  const sx = ry * 2
+  const sy = -rx * 2
+  card.style.boxShadow = \`
+    \${sx}px \${sy + 1}px 2px rgba(0,0,0,.6),
+    \${sx * 2}px \${sy * 2 + 8}px 32px rgba(0,0,0,.65),
+    \${sx * 3}px \${sy * 3 + 24}px 64px rgba(0,0,0,.4),
+    inset 0 1px 0 rgba(255,255,255,.07)
+  \`
+})
+
+document.addEventListener('mouseleave', () => {
+  card.style.transform = ''
+  card.style.boxShadow = ''
+})
+
+// Pre-fill existing config
 ;(async () => {
   try {
     const res = await fetch('/api/setup/status')
     const d = await res.json()
-    if (d.client_name) document.getElementById('client-name').value = d.client_name
+    if (d.client_name)  document.getElementById('client-name').value = d.client_name
     if (d.client_email) document.getElementById('client-email').value = d.client_email
-    if (d.smtp_user) document.getElementById('smtp-user').value = d.smtp_user
+    if (d.smtp_user)    document.getElementById('smtp-user').value = d.smtp_user
   } catch {}
 })()
 </script>

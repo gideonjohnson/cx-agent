@@ -539,6 +539,27 @@ Bun.serve({
 
     // ── Channel status ────────────────────────────────────────────────────────
 
+    if (path === '/api/channels/test/telegram' && method === 'POST') {
+      const token  = getConfig('TELEGRAM_BOT_TOKEN')
+      const chatId = getConfig('TELEGRAM_CHAT_ID')
+      if (!token)  return json({ ok: false, error: 'TELEGRAM_BOT_TOKEN not configured.' })
+      if (!chatId) return json({ ok: false, error: 'TELEGRAM_CHAT_ID not set — open your bot and send /start first.' })
+      try {
+        const meRes  = await fetch(`https://api.telegram.org/bot${token}/getMe`)
+        const me     = await meRes.json() as Record<string, any>
+        if (!me['ok']) return json({ ok: false, error: 'Invalid bot token.' })
+        const msgRes = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: chatId, text: '✅ CX Agent connected — test message from Settings.' }),
+        })
+        const msg = await msgRes.json() as Record<string, any>
+        if (!msg['ok']) return json({ ok: false, error: String(msg['description'] ?? 'Send failed') })
+        return json({ ok: true, message: `Connected — Bot: @${me['result']?.username}` })
+      } catch (e) {
+        return json({ ok: false, error: String(e).slice(0, 200) })
+      }
+    }
+
     if (path === '/api/channels/status' && method === 'GET') {
       const channelPort = (parseInt(process.env.DASHBOARD_PORT ?? '4747')) + 1
       return json({
@@ -546,6 +567,7 @@ Bun.serve({
         sms:       { configured: Boolean(getConfig('TWILIO_ACCOUNT_SID')), phone: getConfig('TWILIO_PHONE_NUMBER') ?? null },
         facebook:  { configured: Boolean(getConfig('FB_PAGE_ACCESS_TOKEN')) },
         instagram: { configured: Boolean(getConfig('FB_PAGE_ACCESS_TOKEN')) },
+        telegram:  { configured: Boolean(getConfig('TELEGRAM_BOT_TOKEN')), chatId: getConfig('TELEGRAM_CHAT_ID') ?? null },
         web:       { configured: true, port: channelPort },
       })
     }
