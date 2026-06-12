@@ -41,8 +41,6 @@
     ],
     "win": {
       "icon": "electron/icon.ico",
-      "certificateFile": "${env.CSC_LINK}",
-      "certificatePassword": "${env.CSC_KEY_PASSWORD}",
       "target": [{
         "target": "nsis",
         "arch": ["x64"]
