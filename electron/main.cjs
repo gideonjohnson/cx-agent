@@ -73,14 +73,19 @@ function installBun() {
 
 function runBun(bunPath, args, opts = {}) {
   return new Promise((resolve, reject) => {
+    fs.mkdirSync(path.dirname(LOG_FILE), { recursive: true })
+    const logFd = fs.openSync(LOG_FILE, 'a')
     const p = spawn(bunPath, args, {
       cwd: APP_DIR,
       windowsHide: true,
-      stdio: 'ignore',
+      stdio: ['ignore', logFd, logFd],
       ...opts,
     })
-    p.on('close', code => code === 0 ? resolve() : reject(new Error(`bun ${args[0]} failed (${code})`)))
-    p.on('error', reject)
+    p.on('close', code => {
+      fs.closeSync(logFd)
+      code === 0 ? resolve() : reject(new Error(`bun ${args[0]} failed (${code})`))
+    })
+    p.on('error', err => { try { fs.closeSync(logFd) } catch {} reject(err) })
   })
 }
 
@@ -288,7 +293,7 @@ app.whenReady().then(async () => {
   if (!fs.existsSync(modulesDir)) {
     setLoadingStatus('Installing dependencies (first run, ~1 min)...')
     try {
-      await runBun(bun, ['install', '--production'])
+      await runBun(bun, ['install'])
     } catch (err) {
       dialog.showErrorBox(
         'Setup Failed',
