@@ -1,6 +1,6 @@
 {
   "name": "cx-agent",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Autonomous omni-channel customer support agent",
   "author": "Dafdevs",
   "type": "module",

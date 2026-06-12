@@ -20,6 +20,13 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Bundle Bun runtime into installer
+        shell: pwsh
+        run: |
+          $bunExe = (Get-Command bun).Source
+          Copy-Item $bunExe electron\bun.exe
+          Write-Host "Bundled bun from $bunExe ($('{0:N0}' -f (Get-Item electron\bun.exe).Length) bytes)"
+
       - name: Install dependencies
         run: bun install
 

@@ -30,6 +30,11 @@ const MAX_RESTARTS = 3
 // ── Bun ───────────────────────────────────────────────────────────────────────
 
 function findBun() {
+  // Bundled bun.exe ships inside the installer — always check first
+  const bundled = path.join(__dirname, 'bun.exe')
+  if (fs.existsSync(bundled)) return bundled
+
+  // Fall back to user-installed Bun
   const home = os.homedir()
   const localApp = process.env.LOCALAPPDATA || ''
   const candidates = [
@@ -49,11 +54,13 @@ function findBun() {
 
 function installBun() {
   return new Promise((resolve) => {
-    const wg = spawnSync('winget', [
-      'install', 'Oven-sh.Bun',
-      '--silent', '--accept-source-agreements', '--accept-package-agreements'
-    ], { windowsHide: true, encoding: 'utf8' })
-    if (wg.status === 0) { resolve(); return }
+    try {
+      const wg = spawnSync('winget', [
+        'install', 'Oven-sh.Bun',
+        '--silent', '--accept-source-agreements', '--accept-package-agreements'
+      ], { windowsHide: true, encoding: 'utf8' })
+      if (wg.status === 0) { resolve(); return }
+    } catch {}
 
     const ps = spawn('powershell.exe', [
       '-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command',
