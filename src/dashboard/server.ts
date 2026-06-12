@@ -539,6 +539,33 @@ Bun.serve({
 
     // ── Channel status ────────────────────────────────────────────────────────
 
+    if (path === '/api/channels/test/whatsapp' && method === 'POST') {
+      const sid     = getConfig('TWILIO_ACCOUNT_SID')
+      const auth    = getConfig('TWILIO_AUTH_TOKEN')
+      const from    = getConfig('TWILIO_WHATSAPP_NUMBER')
+      const to      = getConfig('WHATSAPP_OPERATOR_NUMBER')
+      if (!sid || !auth) return json({ ok: false, error: 'Twilio credentials not configured (shared with SMS).' })
+      if (!from)         return json({ ok: false, error: 'TWILIO_WHATSAPP_NUMBER not configured.' })
+      if (!to)           return json({ ok: false, error: 'WHATSAPP_OPERATOR_NUMBER not configured.' })
+      try {
+        const waFrom = from.startsWith('whatsapp:') ? from : `whatsapp:${from}`
+        const waTo   = to.startsWith('whatsapp:')   ? to   : `whatsapp:${to}`
+        const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Authorization: `Basic ${Buffer.from(`${sid}:${auth}`).toString('base64')}`,
+          },
+          body: new URLSearchParams({ From: waFrom, To: waTo, Body: 'CX Agent connected — test message from Settings.' }).toString(),
+        })
+        const d = await res.json() as Record<string, any>
+        if (d['error_code']) return json({ ok: false, error: `Twilio error ${d['error_code']}: ${d['message']}` })
+        return json({ ok: true, message: `Test message sent to ${to}` })
+      } catch (e) {
+        return json({ ok: false, error: String(e).slice(0, 200) })
+      }
+    }
+
     if (path === '/api/channels/test/telegram' && method === 'POST') {
       const token  = getConfig('TELEGRAM_BOT_TOKEN')
       const chatId = getConfig('TELEGRAM_CHAT_ID')
@@ -568,6 +595,7 @@ Bun.serve({
         facebook:  { configured: Boolean(getConfig('FB_PAGE_ACCESS_TOKEN')) },
         instagram: { configured: Boolean(getConfig('FB_PAGE_ACCESS_TOKEN')) },
         telegram:  { configured: Boolean(getConfig('TELEGRAM_BOT_TOKEN')), chatId: getConfig('TELEGRAM_CHAT_ID') ?? null },
+        whatsapp:  { configured: Boolean(getConfig('TWILIO_WHATSAPP_NUMBER') && getConfig('WHATSAPP_OPERATOR_NUMBER')), whatsappNumber: getConfig('TWILIO_WHATSAPP_NUMBER') ?? null, operatorNumber: getConfig('WHATSAPP_OPERATOR_NUMBER') ?? null },
         web:       { configured: true, port: channelPort },
       })
     }

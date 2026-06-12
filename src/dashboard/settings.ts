@@ -314,6 +314,39 @@ export function getSettingsHtml(): string {
     </div>
   </div>
 
+  <!-- WhatsApp operator bot -->
+  <div class="section">
+    <div class="section-title">WhatsApp — Operator Bot</div>
+    <p style="font-size:13px;color:#94a3b8;margin-bottom:18px;line-height:1.6">Control CX Agent from WhatsApp. Uses your existing Twilio account — no extra cost beyond standard WhatsApp messaging rates.</p>
+    <div class="field">
+      <label>Twilio WhatsApp number <span style="color:#475569;font-weight:400">(sandbox: +14155238886)</span></label>
+      <div class="field-row">
+        <input type="text" id="TWILIO_WHATSAPP_NUMBER" placeholder="+14155238886">
+        <button class="btn-save" onclick="save('TWILIO_WHATSAPP_NUMBER')">Save</button>
+        <span class="saved" id="saved-TWILIO_WHATSAPP_NUMBER">Saved ✓</span>
+      </div>
+      <p class="hint">Enable WhatsApp at <a href="https://console.twilio.com/us1/develop/sms/try-it-out/whatsapp-learn" target="_blank">console.twilio.com</a> → Messaging → Try it out → Send a WhatsApp message. For production, request a WhatsApp Sender.</p>
+    </div>
+    <div class="field">
+      <label>Your WhatsApp number <span style="color:#475569;font-weight:400">(operator's number — messages from here are treated as operator commands)</span></label>
+      <div class="field-row">
+        <input type="text" id="WHATSAPP_OPERATOR_NUMBER" placeholder="+447700900123">
+        <button class="btn-save" onclick="save('WHATSAPP_OPERATOR_NUMBER')">Save</button>
+        <span class="saved" id="saved-WHATSAPP_OPERATOR_NUMBER">Saved ✓</span>
+      </div>
+      <p class="hint">Include country code (e.g. +44 for UK). Only messages from this number are accepted — all others are ignored.</p>
+    </div>
+    <div class="field">
+      <label>Webhook URL — paste this into Twilio Console → WhatsApp → Sandbox Settings → When a message comes in</label>
+      <div class="embed-box" id="wa-webhook" onclick="copyField(this)"></div>
+      <p class="copy-hint">Click to copy</p>
+    </div>
+    <div class="field">
+      <button class="btn-save" style="background:#1e2330;color:#94a3b8;border:1px solid #252a35" onclick="testChannel('whatsapp')">Test WhatsApp connection</button>
+      <span id="test-whatsapp-result" style="font-size:12px;margin-left:10px"></span>
+    </div>
+  </div>
+
   <!-- Telegram operator bot -->
   <div class="section">
     <div class="section-title">Telegram — Operator Bot</div>
@@ -395,9 +428,14 @@ async function loadStatus() {
   if (d.client_email) document.getElementById('CLIENT_EMAIL').value = d.client_email
   if (d.smtp_user)    document.getElementById('SMTP_USER').value    = d.smtp_user
 
-  if (ch.email?.user)     document.getElementById('IMAP_USER').value = ch.email.user
-  if (ch.sms?.phone)     document.getElementById('TWILIO_PHONE_NUMBER').value = ch.sms.phone
+  if (ch.email?.user)       document.getElementById('IMAP_USER').value = ch.email.user
+  if (ch.sms?.phone)       document.getElementById('TWILIO_PHONE_NUMBER').value = ch.sms.phone
   if (ch.telegram?.chatId) document.getElementById('TELEGRAM_CHAT_ID').value = ch.telegram.chatId
+  if (ch.whatsapp?.whatsappNumber) document.getElementById('TWILIO_WHATSAPP_NUMBER').value = ch.whatsapp.whatsappNumber
+  if (ch.whatsapp?.operatorNumber) document.getElementById('WHATSAPP_OPERATOR_NUMBER').value = ch.whatsapp.operatorNumber
+
+  document.getElementById('wa-webhook').textContent =
+    \`http://\${host}:\${port}/webhook/whatsapp\`
 
   const port = ch.web?.port || 4748
   const host = location.hostname || 'YOUR_SERVER_IP'

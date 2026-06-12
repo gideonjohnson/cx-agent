@@ -4,6 +4,7 @@ import { logEvent } from '../lib/events.js'
 import { processInbound, type Channel, type MediaAttachment } from '../agent/channel-handler.js'
 import { sendReply } from '../lib/channel-send.js'
 import { getChatHtml, getWidgetJs } from './chat-page.js'
+import { handleWhatsAppMessage } from './whatsapp.js'
 
 const PORT = parseInt(process.env.DASHBOARD_PORT ?? '4747') + 1
 
@@ -206,6 +207,18 @@ Bun.serve({
       return new Response('EVENT_RECEIVED')
     }
 
+    // ── WhatsApp operator webhook ───────────────────────────────────────────
+
+    if (path === '/webhook/whatsapp' && method === 'POST') {
+      const form = new URLSearchParams(await req.text().catch(() => ''))
+      const from = form.get('From') ?? ''
+      const body = form.get('Body') ?? ''
+      const twiml = () => new Response(`<?xml version="1.0" encoding="UTF-8"?><Response></Response>`, { headers: { 'Content-Type': 'text/xml' } })
+      if (!from || !body) return twiml()
+      handleWhatsAppMessage(from, body).catch(e => logEvent('whatsapp_error', from, String(e).slice(0, 200)))
+      return twiml()
+    }
+
     if (path === '/api/health') return json({ status: 'ok', port: PORT, time: new Date().toISOString() })
 
     return json({ error: 'Not found' }, 404)
@@ -216,3 +229,4 @@ console.log(`[CX Agent] Channel API → http://localhost:${PORT}`)
 console.log(`  Website widget : GET /widget.js  (embed on client's website)`)
 console.log(`  SMS webhook    : POST /webhook/sms  (configure at console.twilio.com)`)
 console.log(`  Facebook/IG    : POST /webhook/facebook  (configure at developers.facebook.com)`)
+console.log(`  WhatsApp       : POST /webhook/whatsapp  (configure at console.twilio.com → WhatsApp)`)

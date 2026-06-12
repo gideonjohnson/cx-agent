@@ -4,6 +4,7 @@ import { logEvent } from '../lib/events.js'
 import { handleCustomerMessage } from './resolver.js'
 import { sanitizeCustomerInput } from '../lib/sanitize.js'
 import { notifyOperator } from '../channels/telegram.js'
+import { notifyOperatorWhatsApp } from '../channels/whatsapp.js'
 
 // In-memory rate limiter: max 20 messages per conversation per 10 minutes
 const messageTimestamps = new Map<string, number[]>()
@@ -172,13 +173,13 @@ export async function processInbound(payload: InboundPayload): Promise<ProcessRe
   )
 
   if (status === 'escalated') {
-    notifyOperator(
-      `🚨 *Escalation* [${payload.channel}]\nFrom: \`${payload.senderId.slice(0,40)}\`\n${payload.body.slice(0,120)}`
-    ).catch(() => {})
+    const alert = `Escalation [${payload.channel}]\nFrom: ${payload.senderId.slice(0,40)}\n${payload.body.slice(0,120)}`
+    notifyOperator(alert).catch(() => {})
+    notifyOperatorWhatsApp(alert).catch(() => {})
   } else if (status === 'awaiting_approval') {
-    notifyOperator(
-      `⏳ *Approval needed* [${payload.channel}]\nFrom: \`${payload.senderId.slice(0,40)}\`\nSend \`/approve ${msgId.slice(0,8)}\` to send the reply.`
-    ).catch(() => {})
+    const alert = `Approval needed [${payload.channel}]\nFrom: ${payload.senderId.slice(0,40)}\nReply /approve ${msgId.slice(0,8)} to send.`
+    notifyOperator(alert).catch(() => {})
+    notifyOperatorWhatsApp(alert).catch(() => {})
   }
 
   return {
